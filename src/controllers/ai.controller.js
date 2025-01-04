@@ -8,7 +8,7 @@ exports.generateEmail = async (req, res) => {
     const { prompt, emails } = req.body;
     
     const completion = await openai.createChatCompletion({
-      model: "gpt-4o",
+      model: "gpt-4o/mini",
       messages: [
         {
           role: "system",
@@ -33,7 +33,7 @@ exports.editEmailWithAI = async (req, res) => {
     const { content, instructions } = req.body;
     
     const completion = await openai.createChatCompletion({
-      model: "gpt-4",
+      model: "gpt-4o/mini",
       messages: [
         {
           role: "system",
@@ -55,7 +55,7 @@ exports.editEmailWithAI = async (req, res) => {
 exports.generateAISummary=async (emailContent)=> {
   try {
       const completion = await openai.chat.completions.create({
-          model: "gpt-4o",
+          model: "gpt-4o/mini",
           messages: [
               {
                   role: "system",
