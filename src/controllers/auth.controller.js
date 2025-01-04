@@ -17,6 +17,7 @@ exports.authenticate = async (req, res) => {
       redirect_uri: "https://www.pixolabs.com/auth/callback", // Match exactly with Google Console
       prompt: "consent", // Add this to force consent screen
     });
+    console.log(authUrl);
     res.json({ url: authUrl });
   } catch (error) {
     console.error("Auth error:", error);
