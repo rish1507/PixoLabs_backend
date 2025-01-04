@@ -14,7 +14,7 @@ exports.authenticate = async (req, res) => {
         "https://www.googleapis.com/auth/userinfo.profile",
         "https://www.googleapis.com/auth/userinfo.email",
       ],
-      redirect_uri: "http://localhost:5173/auth/callback", // Match exactly with Google Console
+      redirect_uri: "https://www.pixolabs.com//auth/callback", // Match exactly with Google Console
       prompt: "consent", // Add this to force consent screen
     });
     res.json({ url: authUrl });
@@ -36,7 +36,7 @@ exports.callback = async (req, res) => {
     // Get token with explicit redirect URI
     const { tokens } = await oauth2Client.getToken({
       code,
-      redirect_uri: "http://localhost:5173/auth/callback",
+      redirect_uri: "https://www.pixolabs.com//auth/callback",
     });
     oauth2Client.setCredentials(tokens);
     const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
