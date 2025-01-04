@@ -10,8 +10,7 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: 'http://localhost:5173',
-  origin:'https://www.pixolabs.com',
+  origin: ['http://localhost:5173', 'https://www.pixolabs.com'],
   credentials: true
 }));
 app.use(express.json());
