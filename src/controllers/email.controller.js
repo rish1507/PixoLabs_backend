@@ -305,7 +305,7 @@ exports.generateEmailReply = async (req, res) => {
       
       // Generate email using OpenAI
       const completion = await openai.chat.completions.create({
-          model: "gpt-4o/mini",
+          model: "gpt-4o-mini",
           messages: [
               {
                   role: "system",
@@ -332,7 +332,7 @@ exports.editEmailWithAI = async (req, res) => {
       const { content, instructions } = req.body;
       
       const completion = await openai.chat.completions.create({
-          model: "gpt-4o/mini",
+          model: "gpt-4o-mini",
           messages: [
               {
                   role: "system",
