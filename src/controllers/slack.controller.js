@@ -1,9 +1,9 @@
 const { WebClient } = require('@slack/web-api');
-
+const User=require("../models/user.model");
+const { summarizeAllEmails } = require('./ai.controller');
 let slackClient;
 let emails = [];
 let generatedEmail = '';
-
 let CHANNEL_ID = null;
 
 const initializeSlackClient = (token, channelId) => {
@@ -11,178 +11,181 @@ const initializeSlackClient = (token, channelId) => {
   CHANNEL_ID = channelId;
 };
 
-const slackController = {
-  initialize: async (req, res) => {
-    try {
-      const { slackToken, channelId, gmailCredentials } = req.body;
-      console.log
-      if (!slackToken || !channelId) {
-        return res.status(400).json({ 
-          error: 'Both slackToken and channelId are required' 
-        });
-      }
-
-      // Initialize Slack
-      initializeSlackClient(slackToken, channelId);
-      // Test Slack connection
-      try {
-        await slackClient.conversations.join({ channel: CHANNEL_ID });
-      } catch (channelError) {
-        if (!channelError.message.includes('already_in_channel')) {
-          throw channelError;
-        }
-      }
-
-      // Initialize Gmail if credentials provided
-    //   if (gmailCredentials) {
-    //     await initializeGmailService(gmailCredentials);
-        
-    //     // Get recent emails
-    //     emails = await listRecentEmails();
-    //   }
-
-      res.json({ 
-        success: true, 
-        message: 'Services initialized successfully',
-        channelId: CHANNEL_ID,
+exports.initialize = async (req, res) => {
+  try {
+    const { slackToken, channelId, gmailCredentials } = req.body;
+    if (!slackToken || !channelId) {
+      return res.status(400).json({ 
+        error: 'Both slackToken and channelId are required' 
       });
-      console.log("intialized")
-    } catch (error) {
-      console.error('Initialization error:', error);
-      res.status(500).json({ error: error.message });
     }
-  },
-
-  // Handle interactive components
-  handleInteractive: async (req, res) => {
+    initializeSlackClient(slackToken, channelId)
     try {
-      const payload = JSON.parse(req.body.payload);
-      const { type, user, channel, trigger_id } = payload;
-
-      if (type === 'block_actions') {
-        const action = payload.actions[0];
-        const messageTs = payload.message.ts;
-        const originalText = payload.message.blocks[0].text.text;
-
-        switch (action.action_id) {
-          case 'start_chat_button':
-            await handleStartChat(trigger_id, channel.id);
-            break;
-          case 'approve_email':
-            await handleApprovalSelection(trigger_id, channel.id, messageTs, originalText);
-            break;
-          case 'edit_with_ai':
-            await handleAIEdit(trigger_id, channel.id, messageTs, originalText);
-            break;
-          case 'edit_myself':
-            await handleManualEdit(trigger_id, channel.id, messageTs, originalText);
-            break;
-          case 'reject_email':
-            await handleRejection(user.id, channel.id, messageTs, originalText);
-            break;
-        }
-      } else if (type === 'view_submission') {
-        await handleModalSubmission(payload);
+      await slackClient.conversations.join({ channel: CHANNEL_ID });
+    } catch (channelError) {
+      if (!channelError.message.includes('already_in_channel')) {
+        throw channelError;
       }
-
-      res.status(200).send();
-    } catch (error) {
-      console.error('Interactive handling error:', error);
-      res.status(500).json({ error: error.message });
     }
-  },
+    res.json({ 
+      success: true, 
+      message: 'Services initialized successfully',
+      channelId: CHANNEL_ID,
+    });
+    console.log("intialized")
+  } catch (error) {
+    console.error('Initialization error:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
 
-  // Send message to channel
-  sendMessage: async (req, res) => {
-    console.log("hi");
-    try {
-      const { text } = req.body;
-      if (!CHANNEL_ID) {
-        return res.status(400).json({ 
-          error: 'Slack channel not initialized. Call /initialize first.' 
-        });
+exports.handleInteractive = async (req, res) => {
+  try {
+    const payload = JSON.parse(req.body.payload);
+    const { type, user, channel, trigger_id } = payload;
+    if (type === 'block_actions') {
+      const action = payload.actions[0];
+      const messageTs = payload.message.ts;
+      const originalText = payload.message.blocks[0].text.text;
+      switch (action.action_id) {
+        case 'start_chat_button':
+          await handleStartChat(trigger_id, channel.id);
+          break;
+        case 'approve_email':
+          await handleApprovalSelection(trigger_id, channel.id, messageTs, originalText);
+          break;
+        case 'edit_with_ai':
+          await handleAIEdit(trigger_id, channel.id, messageTs, originalText);
+          break;
+        case 'edit_myself':
+          await handleManualEdit(trigger_id, channel.id, messageTs, originalText);
+          break;
+        case 'reject_email':
+          await handleRejection(user.id, channel.id, messageTs, originalText);
+          break;
       }
-      const response = await sendMessageWithApprovalButtons(CHANNEL_ID, text);
-      res.json({ 
-        success: true, 
-        messageTs: response.ts,
-        channelId: CHANNEL_ID 
-      });
-    } catch (error) {
-      console.error('Message sending error:', error);
-      res.status(500).json({ error: error.message });
+    } else if (type === 'view_submission') {
+      await handleModalSubmission(payload);
     }
-  },
 
-  // Get current channel info
-  getChannelInfo: async (req, res) => {
-    try {
-      if (!CHANNEL_ID) {
-        return res.status(400).json({ 
-          error: 'Slack channel not initialized. Call /initialize first.' 
-        });
-      }
+    res.status(200).send();
+  } catch (error) {
+    console.error('Interactive handling error:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
 
-      const result = await slackClient.conversations.info({
-        channel: CHANNEL_ID
+exports.sendMessage = async (req, res) => {
+  try {
+    const { emailsData } = req.body;
+    if (!CHANNEL_ID) {
+      return res.status(400).json({ 
+        error: 'Slack channel not initialized. Call /initialize first.' 
       });
-
-      res.json({
-        success: true,
-        channel: result.channel
-      });
-    } catch (error) {
-      console.error('Channel info error:', error);
-      res.status(500).json({ error: error.message });
     }
+    const text= await summarizeAllEmails(emailsData);
+    const response = await sendMessageWithApprovalButtons(CHANNEL_ID, text);
+    res.json({ 
+      success: true, 
+      messageTs: response.ts,
+      channelId: CHANNEL_ID 
+    });
+  } catch (error) {
+    console.error('Message sending error:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+exports.getChannelInfo = async (req, res) => {
+  try {
+    if (!CHANNEL_ID) {
+      return res.status(400).json({ 
+        error: 'Slack channel not initialized. Call /initialize first.' 
+      });
+    }
+    const result = await slackClient.conversations.info({
+      channel: CHANNEL_ID
+    });
+    res.json({
+      success: true,
+      channel: result.channel
+    });
+  } catch (error) {
+    console.error('Channel info error:', error);
+    res.status(500).json({ error: error.message });
   }
 };
 
 // Helper functions
 async function sendMessageWithApprovalButtons(channelId, text) {
-  const blocks = [
-    {
-      type: 'section',
-      text: { type: 'mrkdwn', text },
-    },
-    {
-      type: 'actions',
-      elements: [
+  try {
+    const message = {
+      channel: channelId,
+      text: text || "New message", // Fallback text
+      blocks: [
         {
-          type: 'button',
-          text: { type: 'plain_text', text: 'Approve' },
-          style: 'primary',
-          action_id: 'approve_email',
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: text || "New message" // This was the issue - needs proper text field
+          }
         },
         {
-          type: 'button',
-          text: { type: 'plain_text', text: 'Edit with AI' },
-          style: 'primary',
-          action_id: 'edit_with_ai',
-        },
-        {
-          type: 'button',
-          text: { type: 'plain_text', text: 'Edit Myself' },
-          style: 'primary',
-          action_id: 'edit_myself',
-        },
-        {
-          type: 'button',
-          text: { type: 'plain_text', text: 'Reject' },
-          style: 'danger',
-          action_id: 'reject_email',
-        },
-      ],
-    },
-  ];
+          type: "actions",
+          block_id: "approval_actions",
+          elements: [
+            {
+              type: "button",
+              text: {
+                type: "plain_text",
+                text: "Approve",
+                emoji: true
+              },
+              style: "primary",
+              action_id: "approve_email"
+            },
+            {
+              type: "button",
+              text: {
+                type: "plain_text",
+                text: "Edit with AI",
+                emoji: true
+              },
+              action_id: "edit_with_ai"
+            },
+            {
+              type: "button",
+              text: {
+                type: "plain_text",
+                text: "Edit Myself",
+                emoji: true
+              },
+              action_id: "edit_myself"
+            },
+            {
+              type: "button",
+              text: {
+                type: "plain_text",
+                text: "Reject",
+                emoji: true
+              },
+              style: "danger",
+              action_id: "reject_email"
+            }
+          ]
+        }
+      ]
+    };
 
-  return await slackClient.chat.postMessage({
-    channel: channelId,
-    blocks,
-    text,
-  });
+    // Ensure text is not undefined or null before sending
+    if (!text) {
+      throw new Error('Text parameter is required');
+    }
+    return await slackClient.chat.postMessage(message);
+  } catch (error) {
+    console.error('Error sending message:', error);
+    throw error;
+  }
 }
-
 async function handleStartChat(triggerId, channelId) {
   await slackClient.views.open({
     trigger_id: triggerId,
@@ -419,5 +422,3 @@ async function updateMessage(channelId, messageTs, text) {
     text,
   });
 }
-
-module.exports = slackController;

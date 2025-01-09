@@ -68,10 +68,58 @@ exports.generateAISummary=async (emailContent)=> {
           ],
           max_tokens: 150 // Limit response length
       });
-
       return completion.choices[0].message.content.trim();
   } catch (error) {
       console.error('AI Summary generation error:', error);
       return  emailContent.substring(0, 100) + '...';
   }
 }
+exports.summarizeAllEmails = async (emailData) => {
+  try {
+
+      if (!emailData || !Array.isArray(emailData)) {
+          return undefined;
+      }
+      let emailTexts = "";
+      emailData.forEach((emailItem) => {
+          const sender = emailItem.from || "Unknown Sender";
+          const subject = emailItem.subject || "No Subject";
+          const snippet = emailItem.body || "No Content";
+          emailTexts += `Sender: ${sender}\nSubject: ${subject}\nSnippet: ${snippet}\n\n`;
+      });
+
+      const prompt = `
+      You are the Gmail inbox assistant. I have the following emails from my Primary inbox:
+    ${emailTexts}
+    Decide if there are any messages that seem interesting. Make a summary of the emails that seem interesting with “Sender Name”, “What is the sender asking for in 2 lines”. Don't provide detail on spam-looking messages, or messages that appear to be selling a service or software. You can offer to perform actions like schedule time.
+    Example summary:
+    Your inbox for today includes 4 spam messages, and 1 message from Devin who seems interested in your product - [here's the link](https://linkedin.com/in/devin). Terri has still not responded to your question about scheduling an onboarding call. Would you like me to respond to Devin with your availability.
+    Generate a similar summary based on the provided emails.
+      `;
+
+      // Send the request to OpenAI API
+      const response = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+              {
+                  role: "system",
+                  content: "You are a helpful assistant that summarizes Gmail inbox messages.While summarizing, give the emailID and subject of every email you summarize in new line. and emailID should be a emailID not a number"
+              },
+              {
+                  role: "user",
+                  content: prompt
+              }
+          ],
+          max_tokens: 300,
+          temperature: 0.5,
+      });
+
+      // Extract the summary from the response
+      const summary = response.choices[0].message.content.trim();
+      return summary;
+
+  } catch (error) {
+      console.error("Error while summarizing emails:", error);
+      throw error;
+  }
+};

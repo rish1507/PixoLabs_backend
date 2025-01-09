@@ -5,7 +5,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true
-},
+  },
   email: {
     type: String,
     required: true,
@@ -26,6 +26,10 @@ const userSchema = new mongoose.Schema({
   lastLogin: {
     type: Date,
     default: Date.now
+  },
+  slackInitialized: { // New field
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true
