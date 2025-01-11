@@ -3,28 +3,25 @@ const config = require('../config/config');
 const openai = new OpenAI({
   apiKey: config.openai.apiKey
 });
-exports.generateEmail = async (req, res) => {
+exports.generateEmail = async (prompt,emails,name) => {
   try {
-    const { prompt, emails } = req.body;
-    
-    const completion = await openai.createChatCompletion({
+    const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
-          content: `You are a helpful assistant that generates professional emails. Do not include placeholder in emails I only want general content. Keep the emails very concise.I am giving you sample data. Look at the sample data very carefully and notice that the name Rishab Gupta has the email address ressi.54@gmail.com.When a user mentions a name, pick the corresponding email ID from this. Use my user name when syaing thank you and most important thing do not include subject when You will generate email.`
+          content: `You are a helpful assistant that generates professional emails. Do not include placeholder in emails I only want general content. Keep the emails very concise.I am giving you sample data. Look at the sample data very carefully and notice that the name Rishab Gupta has the email address ressi.54@gmail.com.When a user mentions a name, pick the corresponding email ID from this:${emails}.Use my user name when syaing thank you ${name} and most important thing do not include subject when You will generate email.`
         },
         {
           role: "user",
-          content: `Generate a professional email for the following request and it should contain only genral content not placeholder.:${prompt}`
+          content: `Generate a professional email for the following request and it should contain only genral content not placeholder.: ${prompt}}`
         }
       ]
     });
-
-    res.json({ content: completion.data.choices[0].message.content });
+    return completion.choices[0].message.content;
   } catch (error) {
     console.error('AI generation error:', error);
-    res.status(500).json({ error: 'Failed to generate email' });
+    return "Could not generate email"
   }
 };
 

@@ -11,6 +11,5 @@ router.use('/emails', emailRoutes);
 router.use('/ai', aiRoutes);
 router.use('/slack', slackRoutes);
 router.use('/waitList',waitListRoutes);
-
 module.exports = router;
 

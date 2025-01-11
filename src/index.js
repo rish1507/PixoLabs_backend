@@ -2,6 +2,7 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const bodyParser = require('body-parser'); 
 dotenv.config();
 const routes = require('./routes');
 const { connectDB } = require('./config/db');
@@ -14,6 +15,13 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ 
+    extended: true,
+    verify: (req, res, buf) => {
+        req.rawBody = buf.toString();
+    }
+}));
 
 // Routes
 app.use('/api', routes);

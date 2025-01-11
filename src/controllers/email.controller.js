@@ -234,13 +234,12 @@ exports.getEmailSummaries = async (req, res) => {
     const response = await service.users.messages.list({
       userId: "me",
       maxResults: 10,
-      labelIds: ["INBOX"],
+      labelIds: ["INBOX", "CATEGORY_PERSONAL"],
+      q: "category:primary"
     });
-
     if (!response.data.messages) {
       return res.json([]);
     }
-
     // Get detailed content and generate summaries for each email
     const emailSummaries = await Promise.all(
       response.data.messages.map(async (message) => {
