@@ -1,5 +1,5 @@
 const { getGmailService } = require("../services/gmail.service");
-const { generateAISummary } = require("./ai.controller");
+const { generateAISummary,getActionFromEmail } = require("./ai.controller");
 const OpenAI = require("openai");
 const config = require("../config/config");
 const openai = new OpenAI({
@@ -228,76 +228,92 @@ exports.getEmailSummaries = async (req, res) => {
   try {
     const service = await getGmailService(req.user);
     let emailsData = [];
+    let emailSummaries = [];
+
     // Get list of emails
-    let query = 'category:primary -category:promotions -category:social';
+    let query = "category:primary -category:promotions -category:social";
     if (req.query.startDate && req.query.endDate) {
-      const formattedStartDate = req.query.startDate.replace(/-/g, '/');
-      const formattedEndDate = req.query.endDate.replace(/-/g, '/');
+      const formattedStartDate = req.query.startDate.replace(/-/g, "/");
+      const formattedEndDate = req.query.endDate.replace(/-/g, "/");
       query += ` after:${formattedStartDate} before:${formattedEndDate}`;
     }
+
     const response = await service.users.messages.list({
       userId: "me",
       maxResults: 10,
       labelIds: ["INBOX"],
       q: query,
     });
+
     if (!response.data.messages) {
-      return res.json([]);
+      return res.json({ emailSummaries: [], emailsData: [] });
     }
+
     // Get detailed content and generate summaries for each email
-    const emailSummaries = await Promise.all(
-      response.data.messages.map(async (message) => {
-        // Get full email content
-        const email = await service.users.messages.get({
-          userId: "me",
-          id: message.id,
-          format: "full",
-        });
-        const headers = email.data.payload.headers;
-        // Extract email body
-        let body = "";
-        if (email.data.payload.parts) {
-          body = email.data.payload.parts
-            .filter((part) => part.mimeType === "text/plain")
-            .map((part) => {
-              if (part.body.data) {
-                const buff = Buffer.from(part.body.data, "base64");
-                return buff.toString();
-              }
-              return "";
-            })
-            .join("\n");
-        } else if (email.data.payload.body.data) {
-          const buff = Buffer.from(email.data.payload.body.data, "base64");
-          body = buff.toString();
-        }
-        const aiSummary = await generateAISummary(body);
-        emailsData.push({
-          emailId: message.id,
-          subject:
-            headers.find((h) => h.name.toLowerCase() === "subject")?.value ||
-            "No Subject",
-          from:
-            headers.find((h) => h.name.toLowerCase() === "from")?.value ||
-            "Unknown Sender",
-          date: headers.find((h) => h.name.toLowerCase() === "date")?.value,
-          threadId: email.data.threadId,
-          body: body, // Store the full email body as well
-        });
-        return {
-          emailId: message.id,
-          subject:
-            headers.find((h) => h.name.toLowerCase() === "subject")?.value ||
-            "No Subject",
-          from:
-            headers.find((h) => h.name.toLowerCase() === "from")?.value ||
-            "Unknown Sender",
-          summary: aiSummary,
-          date: headers.find((h) => h.name.toLowerCase() === "date")?.value,
-          threadId: email.data.threadId,
-        };
-      })
-    );
+    for (const message of response.data.messages) {
+      const email = await service.users.messages.get({
+        userId: "me",
+        id: message.id,
+        format: "full",
+      });
+
+      const headers = email.data.payload.headers;
+      const fromHeader = headers.find(
+        (h) => h.name.toLowerCase() === "from"
+      )?.value;
+
+      // Skip mailer-daemon emails
+      if (
+        fromHeader &&
+        fromHeader.toLowerCase().includes("mailer-daemon@googlemail.com")
+      ) {
+        continue;
+      }
+
+      let body = "";
+      if (email.data.payload.parts) {
+        body = email.data.payload.parts
+          .filter((part) => part.mimeType === "text/plain")
+          .map((part) => {
+            if (part.body.data) {
+              const buff = Buffer.from(part.body.data, "base64");
+              return buff.toString();
+            }
+            return "";
+          })
+          .join("\n");
+      } else if (email.data.payload.body.data) {
+        const buff = Buffer.from(email.data.payload.body.data, "base64");
+        body = buff.toString();
+      }
+
+      const aiSummary = await generateAISummary(body);
+      const action=await getActionFromEmail(body);
+      // Push only valid emails into both arrays
+      const emailData = {
+        emailId: message.id,
+        subject:
+          headers.find((h) => h.name.toLowerCase() === "subject")?.value ||
+          "No Subject",
+        from: fromHeader || "Unknown Sender",
+        date: headers.find((h) => h.name.toLowerCase() === "date")?.value,
+        threadId: email.data.threadId,
+        body: body, // Store the full email body
+      };
+
+      emailsData.push(emailData);
+
+      emailSummaries.push({
+        emailId: message.id,
+        subject: emailData.subject,
+        from: emailData.from,
+        summary: aiSummary,
+        date: emailData.date,
+        threadId: emailData.threadId,
+        action:action
+      });
+    }
+
     res.json({ emailSummaries, emailsData });
   } catch (error) {
     console.error("Get email summaries error:", error);
@@ -307,6 +323,7 @@ exports.getEmailSummaries = async (req, res) => {
     });
   }
 };
+
 const processBatchWithDelay = async (
   items,
   processFunction,

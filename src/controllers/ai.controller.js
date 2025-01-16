@@ -56,7 +56,7 @@ exports.generateAISummary=async (emailContent)=> {
           messages: [
               {
                   role: "system",
-                  content: "You are a helpful assistant that creates concise, clear summaries of emails and length should not be more than 25 words. Keep summaries to 1-2 sentences maximum. Focus on the main point and any required actions. in the end first write Action Required: then write the actual action which is required in the next line. Action required should be in bold and in new line"
+                  content: "You are a helpful assistant that creates concise, clear summaries of emails and length should not be more than 25 words. Keep summaries to 1-2 sentences maximum. Focus on the main point and any required actions."
               },
               {
                   role: "user",
@@ -118,5 +118,27 @@ exports.summarizeAllEmails = async (emailData) => {
   } catch (error) {
       console.error("Error while summarizing emails:", error);
       throw error;
+  }
+};
+exports.getActionFromEmail = async (emailContent) => {
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: "You are a helpful assistant that extracts the main action required from an email. Keep the response concise, clear, and limited to 10 words."
+        },
+        {
+          role: "user",
+          content: `What is the action required from this email: ${emailContent}`
+        }
+      ],
+      max_tokens: 50 // Limit response length
+    });
+    return completion.choices[0].message.content.trim();
+  } catch (error) {
+    console.error('Error generating action from email:', error);
+    return "Unable to determine action required. Please review the email.";
   }
 };
