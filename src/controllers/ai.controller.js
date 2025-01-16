@@ -56,7 +56,7 @@ exports.generateAISummary=async (emailContent)=> {
           messages: [
               {
                   role: "system",
-                  content: "You are a helpful assistant that creates concise, clear summaries of emails. Keep summaries to 1-2 sentences maximum. Focus on the main point and any required actions."
+                  content: "You are a helpful assistant that creates concise, clear summaries of emails and length should not be more than 25 words. Keep summaries to 1-2 sentences maximum. Focus on the main point and any required actions. in the end first write Action Required: then write the actual action which is required in the next line. Action required should be in bold and in new line"
               },
               {
                   role: "user",

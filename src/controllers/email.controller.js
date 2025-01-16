@@ -22,7 +22,6 @@ exports.listEmails = async (req, res) => {
           format: "metadata",
           metadataHeaders: ["subject", "from"],
         });
-
         const headers = email.data.payload.headers;
         return {
           id: message.id, // This is the ID you should use
@@ -34,7 +33,6 @@ exports.listEmails = async (req, res) => {
         };
       })
     );
-
     res.json(emails);
   } catch (error) {
     console.error("List emails error:", error);
@@ -231,11 +229,17 @@ exports.getEmailSummaries = async (req, res) => {
     const service = await getGmailService(req.user);
     let emailsData = [];
     // Get list of emails
+    let query = 'category:primary -category:promotions -category:social';
+    if (req.query.startDate && req.query.endDate) {
+      const formattedStartDate = req.query.startDate.replace(/-/g, '/');
+      const formattedEndDate = req.query.endDate.replace(/-/g, '/');
+      query += ` after:${formattedStartDate} before:${formattedEndDate}`;
+    }
     const response = await service.users.messages.list({
       userId: "me",
       maxResults: 10,
-      labelIds: ["INBOX", "CATEGORY_PERSONAL"],
-      q: "category:primary"
+      labelIds: ["INBOX"],
+      q: query,
     });
     if (!response.data.messages) {
       return res.json([]);
@@ -294,7 +298,6 @@ exports.getEmailSummaries = async (req, res) => {
         };
       })
     );
-
     res.json({ emailSummaries, emailsData });
   } catch (error) {
     console.error("Get email summaries error:", error);
