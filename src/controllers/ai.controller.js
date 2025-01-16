@@ -14,10 +14,11 @@ exports.generateEmail = async (prompt,emails,name) => {
         },
         {
           role: "user",
-          content: `Generate a professional email for the following request and it should contain only genral content not placeholder.: ${prompt}}`
+          content: `Generate a professional email for the following request and it should contain only  contain genral content not placeholder and do not include subject only write reply.: ${prompt}}`
         }
       ]
     });
+    console.log(completion.choices[0].message.content)
     return completion.choices[0].message.content;
   } catch (error) {
     console.error('AI generation error:', error);

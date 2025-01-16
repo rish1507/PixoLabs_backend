@@ -355,11 +355,11 @@ exports.generateEmailReply = async (req, res) => {
         {
           role: "system",
           content:
-            "You are a helpful assistant that generates professional email replies and keep email concise. and not include any placeholder only generate general email.",
+            "You are a helpful assistant that generates professional email replies and keep email concise. and not include any placeholder only generate general email and do not include subject in reply",
         },
         {
           role: "user",
-          content: `Original email subject: ${subject}\nOriginal email: ${originalBody}\n\nInstructions for reply: ${instructions}\n\nGenerate a professional reply email. and name of the reciever of this generated email will be ${from} and name of the sender of this generated email will be ${sender}`,
+          content: `Original email subject: ${subject}\nOriginal email: ${originalBody}\n\nInstructions for reply: ${instructions}\n\nGenerate a professional reply email. and name of the reciever of this generated email will be ${from} and name of the sender of this generated email will be ${sender} and not include subject in reply`,
         },
       ],
     });
