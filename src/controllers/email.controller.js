@@ -286,7 +286,7 @@ exports.getEmailSummaries = async (req, res) => {
         const buff = Buffer.from(email.data.payload.body.data, "base64");
         body = buff.toString();
       }
-
+      console.log(body);
       const aiSummary = await generateAISummary(body);
       const action=await getActionFromEmail(body);
       // Push only valid emails into both arrays
