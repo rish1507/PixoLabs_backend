@@ -1,5 +1,5 @@
 const { getGmailService } = require("../services/gmail.service");
-const { generateAISummary,getActionFromEmail } = require("./ai.controller");
+const { generateAISummary,getActionFromEmail,isEmailFromHuman } = require("./ai.controller");
 const OpenAI = require("openai");
 const config = require("../config/config");
 const openai = new OpenAI({
@@ -286,9 +286,9 @@ exports.getEmailSummaries = async (req, res) => {
         const buff = Buffer.from(email.data.payload.body.data, "base64");
         body = buff.toString();
       }
-      console.log(body);
       const aiSummary = await generateAISummary(body);
       const action=await getActionFromEmail(body);
+      const fromHuman=await isEmailFromHuman(body);
       // Push only valid emails into both arrays
       const emailData = {
         emailId: message.id,
@@ -310,7 +310,8 @@ exports.getEmailSummaries = async (req, res) => {
         summary: aiSummary,
         date: emailData.date,
         threadId: emailData.threadId,
-        action:action
+        action:action,
+        fromHuman:fromHuman
       });
     }
 
