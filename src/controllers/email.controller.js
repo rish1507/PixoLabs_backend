@@ -289,7 +289,6 @@ exports.getEmailSummaries = async (req, res) => {
       const aiSummary = await generateAISummary(body);
       const action=await getActionFromEmail(body);
       const fromHuman=await isEmailFromHuman(body);
-      // Push only valid emails into both arrays
       const emailData = {
         emailId: message.id,
         subject:
@@ -314,7 +313,6 @@ exports.getEmailSummaries = async (req, res) => {
         fromHuman:fromHuman
       });
     }
-
     res.json({ emailSummaries, emailsData });
   } catch (error) {
     console.error("Get email summaries error:", error);

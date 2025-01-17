@@ -13,11 +13,12 @@ exports.authenticate = async (req, res) => {
         "https://www.googleapis.com/auth/gmail.send",
         "https://www.googleapis.com/auth/userinfo.profile",
         "https://www.googleapis.com/auth/userinfo.email",
+        "https://www.googleapis.com/auth/calendar.readonly",  // Add these
+        "https://www.googleapis.com/auth/calendar.events",    // calendar scopes
       ],
-      redirect_uri: "https://www.pixolabs.com/auth/callback", // Match exactly with Google Console
-      prompt: "consent", // Add this to force consent screen
+      redirect_uri: "https://www.pixolabs.com/auth/callback",
+      prompt: "consent",
     });
-    console.log(authUrl);
     res.json({ url: authUrl });
   } catch (error) {
     console.error("Auth error:", error);

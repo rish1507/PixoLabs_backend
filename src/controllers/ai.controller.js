@@ -52,6 +52,7 @@ exports.editEmailWithAI = async (req, res) => {
   }
 };
 exports.generateAISummary = async (emailContent) => {
+  console.log("hi");
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -199,5 +200,28 @@ Analyze the following email content and respond with 'Yes' or 'No'.`,
   } catch (error) {
     console.error("Error determining if email is from a human:", error);
     return "Unable to determine. Please review manually.";
+  }
+};
+exports.checkAvailability = async (req,res) => {
+  console.log(req.body.slots,req.body.prompt);
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: `You are an assistant that helps check availability based on calendar data. The calendar data is provided as a list of events. Each event includes a start time and end time. When responding, suggest the available time slots that are free and suitable for scheduling on the given date. Include a thank-you note at the end addressing the user by their name, which is ${req.user.name}. Keep responses clear and concise.`,
+        },
+        {
+          role: "user",
+          content: `Here is the calendar data: ${JSON.stringify(req.body.slots)}. Based on this data, can you suggest the available times for ${req.body.prompt}? Make sure to exclude overlapping or conflicting times.`,
+        },
+      ],
+    });
+    const time=completion.choices[0].message.content
+    res.json({time});
+  } catch (error) {
+    console.error("AI generation error:", error);
+    return "Could not determine availability.";
   }
 };
