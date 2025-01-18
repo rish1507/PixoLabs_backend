@@ -16,7 +16,7 @@ exports.authenticate = async (req, res) => {
         "https://www.googleapis.com/auth/calendar.readonly",  // Add these
         "https://www.googleapis.com/auth/calendar.events",    // calendar scopes
       ],
-      redirect_uri: "https://www.pixolabs.com/auth/callback",
+      redirect_uri: "http://localhost:5173/auth/callback",
       prompt: "consent",
     });
     res.json({ url: authUrl });
@@ -38,7 +38,7 @@ exports.callback = async (req, res) => {
     // Get token with explicit redirect URI
     const { tokens } = await oauth2Client.getToken({
       code,
-      redirect_uri: "https://www.pixolabs.com/auth/callback",
+      redirect_uri: "http://localhost:5173/auth/callback",
     });
     oauth2Client.setCredentials(tokens);
     const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
