@@ -202,26 +202,116 @@ Analyze the following email content and respond with 'Yes' or 'No'.`,
     return "Unable to determine. Please review manually.";
   }
 };
-exports.checkAvailability = async (req,res) => {
-  console.log(req.body.slots,req.body.prompt);
+exports.checkAvailability = async (req, res) => {
+  console.log(req.body.slots, req.body.prompt);
+
   try {
+    // Helper function to format time in 12-hour format with timezone
+    const formatTime = (dateString, timeZone) => {
+      const date = new Date(dateString);
+      return date.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: timeZone,
+      });
+    };
+
+    // Helper function to format date with timezone
+    const formatDate = (dateString, timeZone) => {
+      const date = new Date(dateString);
+      return date.toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+        timeZone: timeZone,
+      });
+    };
+
+    // Group slots by date and timezone
+    const groupedSlots = req.body.slots.reduce((acc, slot) => {
+      const date = new Date(slot.start).toLocaleDateString("en-US", {
+        timeZone: slot.timeZone,
+      });
+      if (!acc[date]) {
+        acc[date] = {
+          slots: [],
+          timeZone: slot.timeZone,
+        };
+      }
+      acc[date].slots.push(slot);
+      return acc;
+    }, {});
+
+    // Process each date's slots
+    let availabilityData = [];
+
+    Object.entries(groupedSlots).forEach(([date, { slots, timeZone }]) => {
+      // Sort slots by start time
+      slots.sort((a, b) => new Date(a.start) - new Date(b.start));
+
+      const dateFormatted = formatDate(slots[0].start, timeZone);
+      const dayData = {
+        date: dateFormatted,
+        timeZone: timeZone,
+        freeSlots: [],
+        busySlots: [],
+      };
+
+      // Add free slots
+      slots.forEach((slot) => {
+        dayData.freeSlots.push({
+          start: formatTime(slot.start, timeZone),
+          end: formatTime(slot.end, timeZone),
+        });
+      });
+
+      // Find busy slots (gaps between free slots)
+      for (let i = 0; i < slots.length - 1; i++) {
+        const currentEndTime = new Date(slots[i].end);
+        const nextStartTime = new Date(slots[i + 1].start);
+
+        if (nextStartTime - currentEndTime > 1000 * 60) {
+          // More than 1 minute gap
+          dayData.busySlots.push({
+            start: formatTime(slots[i].end, timeZone),
+            end: formatTime(slots[i + 1].start, timeZone),
+          });
+        }
+      }
+
+      availabilityData.push(dayData);
+    });
+
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
-          content: `You are an assistant that helps check availability based on calendar data. The calendar data is provided as a list of events. Each event includes a start time and end time. When responding, suggest the available time slots that are free and suitable for scheduling on the given date. Include a thank-you note at the end addressing the user by their name, which is ${req.user.name}. Keep responses clear and concise.`,
+          content: `You are an assistant that helps check availability based on calendar data. The data includes both free slots and busy/meeting slots for each day. Include a thank-you note at the end addressing the user by their name. Keep responses clear and concise. Break it down by 
+“ You have meetings at :
+1. 
+2. 
+
+And you are free at : 
+1. 
+2.`,
         },
         {
           role: "user",
-          content: `Here is the calendar data: ${JSON.stringify(req.body.slots)}. Based on this data, can you suggest the available times for ${req.body.prompt}? Make sure to exclude overlapping or conflicting times.`,
+          content: JSON.stringify({
+            availabilityData: availabilityData,
+            prompt: req.body.prompt,
+            userName: req.user.name,
+          }),
         },
       ],
     });
-    const time=completion.choices[0].message.content
-    res.json({time});
+
+    res.json({ time: completion.choices[0].message.content });
   } catch (error) {
     console.error("AI generation error:", error);
-    return "Could not determine availability.";
+    res.status(500).json({ error: "Could not determine availability." });
   }
 };
