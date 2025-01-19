@@ -290,7 +290,7 @@ exports.checkAvailability = async (req, res) => {
         {
           role: "system",
           content: `You are an assistant that helps check availability based on calendar data. The data includes both free slots and busy/meeting slots for each day. Include a thank-you note at the end addressing the user by their name. Keep responses clear and concise. Break it down by 
-“ You have meetings at :
+“ You have meetings from:
 1. 
 2. 
 
